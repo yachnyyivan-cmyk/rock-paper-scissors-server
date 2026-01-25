@@ -105,6 +105,14 @@ class SocketClient {
         this.reconnectAttempts = 0;
         this.playerId = this.socket.id;
         
+        // Send heartbeat every 5 seconds to keep connection alive
+        if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = setInterval(() => {
+            if (this.isConnected && this.socket) {
+                this.ping();
+            }
+        }, 5000);
+        
         // Identify player to server
         this.identify(this.playerName);
         
@@ -117,6 +125,12 @@ class SocketClient {
     handleDisconnect(reason) {
         console.log('Socket disconnected, reason:', reason);
         this.isConnected = false;
+        
+        // Clear heartbeat
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
         
         // Don't auto-reconnect for certain reasons
         if (reason === 'io server disconnect') {
@@ -383,6 +397,10 @@ class SocketClient {
      * Disconnect socket
      */
     disconnect() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
         if (this.socket) {
             this.socket.disconnect();
         }

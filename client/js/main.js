@@ -230,11 +230,13 @@ class RockPaperScissorsGame {
             console.log('Connected to server:', data);
             this.showScreen('multiplayer-lobby');
             this.hideErrorMessage('multiplayer-error');
+            this.updateConnectionStatus('✓ Connected');
         });
         
         this.socket.on('disconnected', (data) => {
             console.log('Disconnected from server:', data.reason);
-            this.showErrorMessage('multiplayer-error', `Disconnected from server: ${data.reason}`);
+            this.updateConnectionStatus('✗ Disconnected');
+            this.showErrorMessage('multiplayer-error', `Disconnected: ${data.reason}`);
         });
         
         this.socket.on('connect_error', (data) => {
@@ -1158,6 +1160,21 @@ class RockPaperScissorsGame {
     showNotification(message) {
         console.log('Notification:', message);
         // TODO: Implement visual notification display
+    }
+    
+    /**
+     * Update connection status display
+     */
+    updateConnectionStatus(status) {
+        const statusEl = document.getElementById('connection-status');
+        if (statusEl) {
+            statusEl.textContent = status;
+            if (status.includes('✓')) {
+                statusEl.style.color = '#27ae60';
+            } else {
+                statusEl.style.color = '#e74c3c';
+            }
+        }
     }
     
     /**
