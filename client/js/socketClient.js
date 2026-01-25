@@ -44,7 +44,11 @@ class SocketClient {
                 reconnectionDelayMax: this.maxReconnectDelay,
                 reconnectionAttempts: this.maxReconnectAttempts,
                 autoConnect: true,
-                transports: ['websocket', 'polling']
+                transports: ['websocket', 'polling'],
+                // Force new connection for each tab (important for testing in multiple tabs)
+                forceNew: true,
+                // Disable multiplexing to ensure each tab gets its own connection
+                multiplex: false
             };
             
             this.socket = io(serverUrl, socketOptions);
