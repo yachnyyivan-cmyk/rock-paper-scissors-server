@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rock Paper Scissors Game</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Game content will be dynamically loaded here -->
+        <div id="mode-selection" class="screen active">
+            <h1>Rock Paper Scissors</h1>
+            <p class="subtitle">Choose your game mode</p>
+            <div class="mode-buttons">
+                <button id="pvai-btn" class="mode-btn" data-mode="pvai">
+                    <div class="btn-icon">🤖</div>
+                    <div class="btn-text">Player vs AI</div>
+                    <div class="btn-description">Challenge the computer</div>
+                </button>
+                <button id="pvp-btn" class="mode-btn" data-mode="pvp">
+                    <div class="btn-icon">👥</div>
+                    <div class="btn-text">Player vs Player</div>
+                    <div class="btn-description">Play with a friend online</div>
+                </button>
+            </div>
+            <div id="mode-selection-error" class="error-message hidden"></div>
+        </div>
+        
+        <div id="ai-difficulty" class="screen">
+            <h2>Select AI Difficulty</h2>
+            <div class="difficulty-buttons">
+                <button id="easy-btn" class="difficulty-btn" data-difficulty="easy">
+                    <div class="difficulty-icon">😊</div>
+                    <div class="difficulty-text">Easy</div>
+                    <div class="difficulty-description">Random moves, perfect for beginners</div>
+                </button>
+                <button id="medium-btn" class="difficulty-btn" data-difficulty="medium">
+                    <div class="difficulty-icon">🤔</div>
+                    <div class="difficulty-text">Medium</div>
+                    <div class="difficulty-description">Basic patterns, moderate challenge</div>
+                </button>
+                <button id="hard-btn" class="difficulty-btn" data-difficulty="hard">
+                    <div class="difficulty-icon">🧠</div>
+                    <div class="difficulty-text">Hard</div>
+                    <div class="difficulty-description">Advanced AI, maximum challenge</div>
+                </button>
+            </div>
+            <button id="back-to-mode" class="back-btn">← Back to Mode Selection</button>
+        </div>
+        
+        <div id="multiplayer-lobby" class="screen">
+            <h2>Multiplayer Lobby</h2>
+            <div class="lobby-options">
+                <button id="create-room-btn" class="lobby-btn">
+                    <div class="lobby-icon">➕</div>
+                    <div class="lobby-text">Create Room</div>
+                </button>
+                <button id="join-room-btn" class="lobby-btn">
+                    <div class="lobby-icon">🚪</div>
+                    <div class="lobby-text">Join Room</div>
+                </button>
+            </div>
+            <div id="room-code-input" class="room-input hidden">
+                <input type="text" id="room-code" placeholder="Enter room code" maxlength="6">
+                <button id="join-room-submit">Join</button>
+            </div>
+            <div id="multiplayer-error" class="error-message hidden"></div>
+            <button id="back-to-mode-mp" class="back-btn">← Back to Mode Selection</button>
+        </div>
+        
+        <div id="waiting-room" class="screen">
+            <h2>Waiting Room</h2>
+            <div class="room-info">
+                <div class="room-code-section">
+                    <label>Room Code:</label>
+                    <div id="room-code-display" class="room-code">XXXXXX</div>
+                    <button id="copy-room-code" class="copy-btn">📋 Copy Code</button>
+                </div>
+                <div class="players-info-section">
+                    <div id="players-info">Players: 1/2</div>
+                    <div id="players-list" class="players-list">
+                        <!-- Player items will be added here -->
+                    </div>
+                </div>
+            </div>
+            <div class="ready-section">
+                <button id="ready-btn" class="ready-btn">Ready</button>
+                <p class="ready-status-text">Waiting for all players to be ready...</p>
+            </div>
+            <button id="leave-room-btn" class="back-btn">← Leave Room</button>
+        </div>
+        
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <h2 id="game-mode-title">Player vs AI</h2>
+                <div class="game-info">
+                    <span id="difficulty-display" class="difficulty-badge">Easy</span>
+                    <span class="round-info">Round <span id="current-round">1</span></span>
+                </div>
+            </div>
+            
+            <div class="score-board">
+                <div class="player-score">
+                    <div class="score-label">You</div>
+                    <div class="score-value" id="player-score">0</div>
+                </div>
+                <div class="score-separator">-</div>
+                <div class="opponent-score">
+                    <div class="score-label" id="opponent-label">AI</div>
+                    <div class="score-value" id="opponent-score">0</div>
+                </div>
+            </div>
+            
+            <div class="game-area">
+                <div class="moves-display">
+                    <div class="player-move">
+                        <div class="move-label">Your Move</div>
+                        <div class="move-icon" id="player-move-display">❓</div>
+                    </div>
+                    <div class="vs-indicator">VS</div>
+                    <div class="opponent-move">
+                        <div class="move-label" id="opponent-move-label">AI Move</div>
+                        <div class="move-icon" id="opponent-move-display">❓</div>
+                        <div class="ai-thinking hidden" id="ai-thinking">🤔</div>
+                    </div>
+                </div>
+                
+                <div class="result-display hidden" id="result-display">
+                    <div class="result-text" id="result-text"></div>
+                    <div class="result-details" id="result-details"></div>
+                </div>
+                
+                <div class="move-selection" id="move-selection">
+                    <h3>Choose your move:</h3>
+                    <div class="move-buttons">
+                        <button class="move-btn" data-move="rock">
+                            <div class="move-emoji">🪨</div>
+                            <div class="move-name">Rock</div>
+                        </button>
+                        <button class="move-btn" data-move="paper">
+                            <div class="move-emoji">📄</div>
+                            <div class="move-name">Paper</div>
+                        </button>
+                        <button class="move-btn" data-move="scissors">
+                            <div class="move-emoji">✂️</div>
+                            <div class="move-name">Scissors</div>
+                        </button>
+                    </div>
+                    <div class="move-timer">
+                        <div class="timer-bar" id="timer-bar"></div>
+                        <div class="timer-text">Time remaining: <span id="timer-seconds">15</span>s</div>
+                    </div>
+                </div>
+                
+                <div class="game-controls">
+                    <button id="play-again-btn" class="control-btn hidden">Play Again</button>
+                    <button id="quit-game-btn" class="control-btn">Quit Game</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loading" class="screen">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/socketClient.js"></script>
+    <script src="js/AIEngine.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

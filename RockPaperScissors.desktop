@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Rock Paper Scissors
+Comment=Play Rock Paper Scissors (AI + Multiplayer)
+Exec=/home/ivan/Documents/Rock\ Paper\ Scissors/run_app.sh
+Icon=/home/ivan/Documents/Rock\ Paper\ Scissors/assets/scissors-icon.svg
+Terminal=false
+Type=Application
+Categories=Game;
