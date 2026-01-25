@@ -305,7 +305,10 @@ class RockPaperScissorsGame {
             
             // Check if both players are ready to start game
             if (this.canStartGame(data.room)) {
+                console.log('Both players ready! Starting game...');
                 this.startMultiplayerGame();
+            } else {
+                console.log('Waiting for all players to be ready. Current room:', data.room);
             }
         });
         
@@ -1202,16 +1205,16 @@ class RockPaperScissorsGame {
      */
     toggleReady() {
         if (!this.socket || !this.socket.isSocketConnected()) {
+            console.error('Cannot toggle ready: socket not connected');
             this.showErrorMessage('multiplayer-error', 'Not connected to server');
             return;
         }
         
-        // Check current ready status from button state
-        const readyBtn = document.getElementById('ready-btn');
-        const isCurrentlyReady = readyBtn.classList.contains('ready');
+        const currentPlayer = this.currentRoom?.players.find(p => p.id === this.socket.playerId);
+        const newReadyState = currentPlayer ? !currentPlayer.isReady : true;
         
-        // Toggle the status
-        this.socket.setReady(!isCurrentlyReady);
+        console.log('Toggling ready state to:', newReadyState);
+        this.socket.setReady(newReadyState);
     }
     
     /**
