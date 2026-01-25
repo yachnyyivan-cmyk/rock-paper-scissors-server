@@ -33,7 +33,12 @@ class SocketClient {
         this.isConnecting = true;
         
         try {
+            // Determine server URL - use current origin (works for both localhost and deployed URL)
+            const serverUrl = window.location.origin;
+            console.log('Connecting to socket server at:', serverUrl);
+            
             const socketOptions = {
+                url: serverUrl,
                 reconnection: true,
                 reconnectionDelay: this.reconnectDelay,
                 reconnectionDelayMax: this.maxReconnectDelay,
@@ -42,7 +47,7 @@ class SocketClient {
                 transports: ['websocket', 'polling']
             };
             
-            this.socket = io(socketOptions);
+            this.socket = io(serverUrl, socketOptions);
             
             this.setupEventListeners();
         } catch (error) {
@@ -135,6 +140,7 @@ class SocketClient {
     handleConnectError(error) {
         console.error('Connection error:', error);
         this.reconnectAttempts++;
+        console.warn(`Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
         this.emit('connect_error', { error, attempt: this.reconnectAttempts });
     }
     
