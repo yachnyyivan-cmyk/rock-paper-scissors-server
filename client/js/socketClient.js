@@ -311,7 +311,13 @@ class SocketClient {
      */
     submitMove(move) {
         if (!this.isConnected) {
-            this.emit('game_error', { error: 'Not connected to server' });
+            console.error('Cannot submit move: socket not connected. Current state:', {
+                isConnected: this.isConnected,
+                isConnecting: this.isConnecting,
+                socketExists: !!this.socket,
+                socketConnected: this.socket ? this.socket.connected : false
+            });
+            this.emit('game_error', { error: 'Not connected to server. Please wait for reconnection.' });
             return;
         }
         
@@ -324,7 +330,10 @@ class SocketClient {
             return;
         }
         
-        this.socket.emit('submit_move', { move: normalizedMove });
+        console.log('Emitting submit_move:', normalizedMove);
+        this.socket.emit('submit_move', { move: normalizedMove }, (response) => {
+            console.log('Move submission response:', response);
+        });
     }
     
     /**

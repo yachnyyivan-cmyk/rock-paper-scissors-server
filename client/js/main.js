@@ -485,6 +485,13 @@ class RockPaperScissorsGame {
         // Handle single-player vs multiplayer mode
         if (this.gameMode === 'pvp' && this.socket) {
             // Multiplayer mode: submit move to server
+            if (!this.socket.isSocketConnected()) {
+                console.error('Socket not connected! Status:', this.socket.isConnected);
+                this.showNotification('❌ Connection lost. Reconnecting...');
+                this.socket.reconnect();
+                return;
+            }
+            console.log('Submitting move:', move);
             this.socket.submitMove(move);
             this.showNotification('Waiting for opponent...');
         } else {

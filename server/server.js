@@ -5,15 +5,25 @@ const path = require('path');
 const cors = require('cors');
 const RoomManager = require('./RoomManager');
 
+// Determine allowed origins from environment (comma-separated), with sensible defaults
+function getAllowedOrigins() {
+    const envOrigins = process.env.ALLOWED_ORIGINS;
+    if (envOrigins) {
+        return envOrigins.split(',').map(o => o.trim()).filter(Boolean);
+    }
+    return process.env.NODE_ENV === 'production'
+        ? ["https://yourdomain.com"]
+        : ["http://localhost:3000", "http://127.0.0.1:3000"];
+}
+
 class GameServer {
     constructor() {
+        this.allowedOrigins = getAllowedOrigins();
         this.app = express();
         this.server = http.createServer(this.app);
         this.io = socketIo(this.server, {
             cors: {
-                origin: process.env.NODE_ENV === 'production' 
-                    ? ["https://yourdomain.com"] 
-                    : ["http://localhost:3000", "http://127.0.0.1:3000"],
+                origin: this.allowedOrigins,
                 methods: ["GET", "POST"],
                 credentials: true
             },
@@ -38,9 +48,7 @@ class GameServer {
     setupMiddleware() {
         // CORS configuration
         this.app.use(cors({
-            origin: process.env.NODE_ENV === 'production' 
-                ? ["https://yourdomain.com"] 
-                : ["http://localhost:3000", "http://127.0.0.1:3000"],
+            origin: this.allowedOrigins,
             credentials: true
         }));
         
