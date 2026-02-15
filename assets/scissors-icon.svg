@@ -1,16 +1,49 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <defs>
-    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0" stop-color="#ff9800"/>
-      <stop offset="1" stop-color="#ff6f00"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="128" height="128" rx="24" fill="url(#g)"/>
-  <g fill="#ffffff" stroke="#ffffff" stroke-width="2" transform="translate(16,16)">
-    <circle cx="24" cy="80" r="12" fill="none"/>
-    <circle cx="56" cy="80" r="12" fill="none"/>
-    <path d="M24 68 L64 16" stroke-linecap="round"/>
-    <path d="M56 68 L16 16" stroke-linecap="round"/>
-    <circle cx="40" cy="40" r="3"/>
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Orange circle background -->
+  <circle cx="256" cy="256" r="246" fill="#FF8C2E" stroke="#2B2B2B" stroke-width="16"/>
+  
+  <!-- Rock (Fist) - upper left -->
+  <g id="rock">
+    <path d="M140 120 Q120 110 110 130 L110 160 Q110 180 125 185 L125 200 Q125 220 145 225 L145 240 Q145 255 160 260 L180 260 Q200 260 210 245 L220 220 Q230 210 230 190 L230 165 Q230 145 215 135 L215 125 Q215 110 200 105 L190 100 Q175 95 165 100 L155 105 Q145 108 140 120 Z" 
+          fill="#9E9E9E" stroke="#2B2B2B" stroke-width="8"/>
+    <path d="M145 150 L145 180" stroke="#5D5D5D" stroke-width="5" stroke-linecap="round"/>
+    <path d="M165 145 L165 175" stroke="#5D5D5D" stroke-width="5" stroke-linecap="round"/>
+    <path d="M185 150 L185 180" stroke="#5D5D5D" stroke-width="5" stroke-linecap="round"/>
+    <path d="M205 155 L205 185" stroke="#5D5D5D" stroke-width="5" stroke-linecap="round"/>
+    <ellipse cx="170" cy="230" rx="35" ry="20" fill="#7A7A7A"/>
+  </g>
+  
+  <!-- Paper (Sheet) - upper right -->
+  <g id="paper">
+    <path d="M310 100 L420 100 L420 110 Q420 120 410 120 L410 240 Q410 260 390 260 L310 260 Q295 260 295 245 L295 115 Q295 100 310 100 Z" 
+          fill="#FFFFFF" stroke="#2B2B2B" stroke-width="8"/>
+    <path d="M410 120 L410 100 L420 100 L420 130 Q420 145 405 145 L405 130 Q405 120 410 120 Z" 
+          fill="#E0E0E0" stroke="#2B2B2B" stroke-width="6"/>
+    <!-- Lines on paper -->
+    <line x1="320" y1="140" x2="385" y2="140" stroke="#AAAAAA" stroke-width="6" stroke-linecap="round"/>
+    <line x1="320" y1="170" x2="385" y2="170" stroke="#AAAAAA" stroke-width="6" stroke-linecap="round"/>
+    <line x1="320" y1="200" x2="360" y2="200" stroke="#AAAAAA" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Scissors - bottom center -->
+  <g id="scissors">
+    <!-- Handles -->
+    <ellipse cx="220" cy="350" rx="25" ry="30" fill="#E53935" stroke="#2B2B2B" stroke-width="7"/>
+    <ellipse cx="220" cy="350" rx="12" ry="18" fill="#FFEBEE"/>
+    
+    <ellipse cx="290" cy="350" rx="25" ry="30" fill="#E53935" stroke="#2B2B2B" stroke-width="7"/>
+    <ellipse cx="290" cy="350" rx="12" ry="18" fill="#FFEBEE"/>
+    
+    <!-- Center pivot -->
+    <circle cx="255" cy="340" r="12" fill="#757575" stroke="#2B2B2B" stroke-width="5"/>
+    
+    <!-- Blades -->
+    <path d="M220 360 L240 390 Q245 400 255 400 L260 400 Q270 400 275 390 L290 360" 
+          fill="#D0D0D0" stroke="#2B2B2B" stroke-width="7"/>
+    <path d="M245 380 L255 395 L265 380" 
+          fill="#B0B0B0" stroke="#2B2B2B" stroke-width="5"/>
+    
+    <!-- Blade tips -->
+    <ellipse cx="256" cy="408" rx="8" ry="5" fill="#9E9E9E"/>
   </g>
 </svg>
