@@ -5,7 +5,7 @@
 // Main application entry point
 class RockPaperScissorsGame {
     constructor() {
-        this.currentScreen = 'mode-selection';
+        this.currentScreen = 'auth-screen';
         this.gameMode = null;
         this.aiDifficulty = null;
         this.socket = null;
@@ -17,6 +17,7 @@ class RockPaperScissorsGame {
         this.aiEngine = null;
         this.aiThinkingTimeout = null;
         this.playerName = 'Player';
+        this.playerId = null;
         this.reconnectionAttempts = 0;
         this.maxReconnectionAttempts = 5;
         
@@ -24,12 +25,264 @@ class RockPaperScissorsGame {
     }
     
     init() {
-        this.setupEventListeners();
+        try {
+            this.setupAuthEventListeners();
+            
+            // Check if user is already logged in
+            const currentUser = authService ? authService.getUser() : null;
+            if (currentUser && currentUser.username) {
+                this.playerName = currentUser.username;
+                this.playerId = currentUser.id;
+                this.showDashboard();
+            } else {
+                if (authService) authService.logout();
+                this.showScreen('auth-screen');
+            }
+        } catch (err) {
+            console.error('Init error:', err);
+            alert('App failed to initialize. Please reload.');
+            this.showScreen('auth-screen');
+        }
+    }
+    
+    setupAuthEventListeners() {
+        // Auth screen toggle
+        const loginLink = document.getElementById('toggle-to-login');
+        const registerLink = document.getElementById('toggle-to-register');
+        
+        if (loginLink) {
+            loginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('register-form').classList.add('hidden');
+                document.getElementById('login-form').classList.remove('hidden');
+            });
+        }
+        
+        if (registerLink) {
+            registerLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('register-form').classList.remove('hidden');
+            });
+        }
+
+        // Login form
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
+        }
+
+        // Register form
+        const registerBtn = document.getElementById('register-btn');
+        if (registerBtn) {
+            registerBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.handleRegister();
+            });
+        }
+
+        // Dashboard buttons
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.handleLogout());
+        }
+
+        const playGameBtn = document.getElementById('play-btn');
+        if (playGameBtn) {
+            playGameBtn.addEventListener('click', () => this.goToModeSelection());
+        }
+
+        const leaderboardBtn = document.getElementById('leaderboard-btn');
+        if (leaderboardBtn) {
+            leaderboardBtn.addEventListener('click', () => this.showLeaderboard());
+        }
+
+        // Leaderboard back button
+        const backFromLeaderboard = document.getElementById('back-to-dashboard');
+        if (backFromLeaderboard) {
+            backFromLeaderboard.addEventListener('click', () => this.showDashboard());
+        }
+
+        // Leaderboard tab buttons
+        const spLeaderboardTab = document.getElementById('sp-leaderboard-tab');
+        const mpLeaderboardTab = document.getElementById('mp-leaderboard-tab');
+        if (spLeaderboardTab) {
+            spLeaderboardTab.addEventListener('click', () => this.switchLeaderboardTab('sp'));
+        }
+        if (mpLeaderboardTab) {
+            mpLeaderboardTab.addEventListener('click', () => this.switchLeaderboardTab('mp'));
+        }
+    }
+
+    async handleLogin() {
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+
+        if (!username || !password) {
+            alert('Please enter username and password');
+            return;
+        }
+
+        try {
+            const result = await authService.login(username, password);
+            if (result.success) {
+                this.playerName = result.user.username;
+                this.playerId = result.user.id;
+                this.showDashboard();
+                // Clear form
+                document.getElementById('login-username').value = '';
+                document.getElementById('login-password').value = '';
+            } else {
+                alert(result.error || 'Login failed');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('Login failed');
+        }
+    }
+
+    async handleRegister() {
+        const username = document.getElementById('register-username').value.trim();
+        const password = document.getElementById('register-password').value;
+        const confirmPassword = document.getElementById('register-confirm').value;
+
+        if (!username || !password || !confirmPassword) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        try {
+            const result = await authService.register(username, password, confirmPassword);
+            if (result.success) {
+                alert('Account created! Please log in.');
+                // Clear form and switch to login
+                document.getElementById('register-username').value = '';
+                document.getElementById('register-password').value = '';
+                const confirmInput = document.getElementById('register-confirm');
+                if (confirmInput) confirmInput.value = '';
+                document.getElementById('register-form').classList.add('hidden');
+                document.getElementById('login-form').classList.remove('hidden');
+            } else {
+                alert(result.error || 'Registration failed');
+            }
+        } catch (error) {
+            console.error('Register error:', error);
+            alert('Registration failed');
+        }
+    }
+
+    handleLogout() {
+        authService.logout();
+        this.playerName = 'Player';
+        this.playerId = null;
+        this.showScreen('auth-screen');
+        // Clear any game state
+        if (this.socket) {
+            this.socket.disconnect();
+        }
+    }
+
+    showDashboard() {
+        const currentUser = authService.getUser();
+        if (!currentUser) return;
+
+        // Update dashboard with user info
+        const usernameEl = document.getElementById('username-display');
+        if (usernameEl) usernameEl.textContent = currentUser.username;
+        document.getElementById('sp-points').textContent = currentUser.spPoints || 0;
+        document.getElementById('mp-score').textContent = currentUser.mpScore || 0;
+        const rankEl = document.getElementById('player-rank');
+        if (rankEl) rankEl.textContent = 'Loading...';
+
+        // Fetch user rank
+        authService.getUserRank('sp').then(rank => {
+            if (rank && rankEl) {
+                rankEl.textContent = `#${rank.rank}`;
+            }
+        }).catch(err => console.error('Error fetching rank:', err));
+
+        this.showScreen('dashboard');
+    }
+
+    goToModeSelection() {
+        this.setupGameEventListeners();
         this.showScreen('mode-selection');
         this.startModeSelectionTimer();
     }
-    
-    setupEventListeners() {
+
+    async showLeaderboard() {
+        this.currentLeaderboardType = 'sp'; // Default to single-player
+        await this.loadLeaderboard('sp');
+        this.showScreen('leaderboard');
+    }
+
+    async switchLeaderboardTab(type) {
+        this.currentLeaderboardType = type;
+        
+        // Update tab active states
+        const spTab = document.getElementById('sp-leaderboard-tab');
+        const mpTab = document.getElementById('mp-leaderboard-tab');
+        
+        if (type === 'sp') {
+            spTab.classList.add('active');
+            mpTab.classList.remove('active');
+        } else {
+            mpTab.classList.add('active');
+            spTab.classList.remove('active');
+        }
+        
+        await this.loadLeaderboard(type);
+    }
+
+    async loadLeaderboard(type) {
+        try {
+            const leaderboard = await authService.getLeaderboard(type);
+            const leaderboardContainer = document.getElementById('leaderboard-list');
+            leaderboardContainer.innerHTML = '';
+
+            if (leaderboard.length === 0) {
+                leaderboardContainer.innerHTML = '<div style="padding: 40px; text-align: center; color: #666;">No players yet</div>';
+                return;
+            }
+
+            const currentUser = authService.getUser();
+            
+            leaderboard.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = 'leaderboard-entry';
+                
+                // Highlight current user
+                const isCurrentUser = currentUser && entry.id === currentUser.id;
+                if (isCurrentUser) {
+                    div.style.background = '#f0f7ff';
+                    div.style.border = '2px solid #667eea';
+                }
+                
+                const scoreValue = type === 'sp' ? entry.spPoints : entry.mpScore;
+                const scoreLabel = type === 'sp' ? 'points' : 'rating';
+                
+                div.innerHTML = `
+                    <div class="leaderboard-rank rank-${entry.rank}">
+                        ${entry.rank <= 3 ? ['🥇', '🥈', '🥉'][entry.rank - 1] : `#${entry.rank}`}
+                    </div>
+                    <div class="leaderboard-info">
+                        <div class="leaderboard-name">${entry.username}${isCurrentUser ? ' (You)' : ''}</div>
+                    </div>
+                    <div class="leaderboard-points">${scoreValue} ${scoreLabel}</div>
+                `;
+                leaderboardContainer.appendChild(div);
+            });
+        } catch (error) {
+            console.error('Error loading leaderboard:', error);
+            const leaderboardContainer = document.getElementById('leaderboard-list');
+            leaderboardContainer.innerHTML = '<div style="padding: 40px; text-align: center; color: #e74c3c;">Failed to load leaderboard</div>';
+        }
+    }
+
+    setupGameEventListeners() {
         // Mode selection buttons
         document.getElementById('pvai-btn').addEventListener('click', () => {
             this.clearModeSelectionTimer();
@@ -64,6 +317,15 @@ class RockPaperScissorsGame {
             this.showScreen('mode-selection');
             this.startModeSelectionTimer();
         });
+
+        // Back to dashboard buttons
+        const backToDashboard = document.getElementById('back-to-dashboard-from-mode');
+        if (backToDashboard) {
+            backToDashboard.addEventListener('click', () => {
+                this.clearModeSelectionTimer();
+                this.showDashboard();
+            });
+        }
         
         // Multiplayer lobby buttons
         document.getElementById('create-room-btn').addEventListener('click', () => {
@@ -439,7 +701,12 @@ class RockPaperScissorsGame {
         
         document.getElementById('play-again-btn').addEventListener('click', () => {
             if (this.gameState.gameStatus === 'finished') {
-                this.startNewGame();
+                if (this.gameMode === 'pvp') {
+                    // Return to multiplayer lobby
+                    this.showScreen('multiplayer-lobby');
+                } else {
+                    this.startNewGame();
+                }
             } else {
                 this.startNewRound();
             }
@@ -810,7 +1077,11 @@ class RockPaperScissorsGame {
         
         // Reset round state
         this.gameState.playerMove = null;
-        this.gameState.aiMove = null;
+        if (this.gameMode === 'pvp') {
+            this.gameState.opponentMove = null;
+        } else {
+            this.gameState.aiMove = null;
+        }
         
         // Reset UI
         document.getElementById('player-move-display').textContent = '❓';
@@ -913,6 +1184,32 @@ class RockPaperScissorsGame {
         };
         
         console.log('Game Completed:', gameData);
+        
+        // Award points for single-player game
+        if (playerWon && this.playerId) {
+            const pointsMap = {
+                'easy': 1,
+                'medium': 3,
+                'hard': 5
+            };
+            const points = pointsMap[this.aiDifficulty] || 0;
+            
+            // Call API to add points
+            fetch(`https://rock-paper-scissors-server-smon.onrender.com/api/users/${this.playerId}/sp-points`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ points })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Update local user cache
+                    authService.updateLocalUser(data.user);
+                    console.log(`Earned ${points} points for beating ${this.aiDifficulty} AI`);
+                }
+            })
+            .catch(err => console.error('Error awarding points:', err));
+        }
         
         // In a real implementation, you might send this to analytics
         // this.sendAnalytics('game_completed', gameData);
@@ -1104,15 +1401,38 @@ class RockPaperScissorsGame {
         }
         
         // Calculate and display result
+        let resultMessage, resultDetails;
         if (winner === 'tie') {
-            this.displayRoundResult('Tie!', 'Both players chose the same move');
+            resultMessage = "It's a Tie!";
+            resultDetails = 'Both players chose the same move';
         } else if (winner === this.socket.playerId) {
             this.gameState.playerScore++;
-            this.displayRoundResult('You Win! 🎉', 'You won this round');
+            resultMessage = 'You Win! 🎉';
+            resultDetails = 'You won this round';
         } else {
             this.gameState.opponentScore++;
-            this.displayRoundResult('You Lose', 'Opponent won this round');
+            resultMessage = 'You Lose';
+            resultDetails = 'Opponent won this round';
         }
+        
+        // Show result using the single-player result display
+        const resultDisplay = document.getElementById('result-display');
+        const resultText = document.getElementById('result-text');
+        const resultDetailsEl = document.getElementById('result-details');
+        
+        resultDisplay.classList.remove('win', 'lose', 'tie');
+        if (winner === this.socket.playerId) {
+            resultDisplay.classList.add('win');
+        } else if (winner === 'tie') {
+            resultDisplay.classList.add('tie');
+        } else {
+            resultDisplay.classList.add('lose');
+        }
+        
+        resultText.textContent = resultMessage;
+        resultDetailsEl.textContent = resultDetails;
+        resultDisplay.classList.remove('hidden');
+        document.getElementById('move-selection').classList.add('hidden');
         
         this.updateScoreDisplay();
         
@@ -1139,12 +1459,64 @@ class RockPaperScissorsGame {
      */
     endMultiplayerGame() {
         const playerWon = this.gameState.playerScore > this.gameState.opponentScore;
-        const resultText = playerWon ? 'You Won the Match! 🏆' : 'Match Over - Opponent Won';
         
-        this.displayGameEnd(resultText, playerWon);
+        const resultDisplay = document.getElementById('result-display');
+        const resultText = document.getElementById('result-text');
+        const resultDetails = document.getElementById('result-details');
+        
+        resultDisplay.classList.remove('win', 'lose', 'tie');
+        
+        if (playerWon) {
+            resultDisplay.classList.add('win');
+            resultText.textContent = 'You Won the Match! 🏆';
+            resultDetails.textContent = `Final Score: ${this.gameState.playerScore}-${this.gameState.opponentScore}`;
+            
+            // Award multiplayer points for win
+            if (this.playerId) {
+                fetch(`https://rock-paper-scissors-server-smon.onrender.com/api/users/${this.playerId}/mp-score`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ points: 10 })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        authService.updateLocalUser(data.user);
+                        console.log('Earned 10 multiplayer points for winning');
+                    }
+                })
+                .catch(err => console.error('Error awarding multiplayer points:', err));
+            }
+        } else {
+            resultDisplay.classList.add('lose');
+            resultText.textContent = 'Match Over';
+            resultDetails.textContent = `Opponent won ${this.gameState.opponentScore}-${this.gameState.playerScore}`;
+            
+            // Deduct multiplayer points for loss
+            if (this.playerId) {
+                fetch(`https://rock-paper-scissors-server-smon.onrender.com/api/users/${this.playerId}/mp-score`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ points: -10 })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        authService.updateLocalUser(data.user);
+                        console.log('Lost 10 multiplayer points for losing');
+                    }
+                })
+                .catch(err => console.error('Error deducting multiplayer points:', err));
+            }
+        }
+        
+        resultDisplay.classList.remove('hidden');
+        document.getElementById('move-selection').classList.add('hidden');
         
         document.getElementById('play-again-btn').textContent = 'Return to Menu';
         document.getElementById('play-again-btn').classList.remove('hidden');
+        
+        this.gameState.gameStatus = 'finished';
     }
     
     /**

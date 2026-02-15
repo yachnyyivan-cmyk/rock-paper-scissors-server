@@ -5,11 +5,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rock Paper Scissors Game</title>
     <link rel="stylesheet" href="styles/main.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23667eea' width='100' height='100'/><text x='50' y='65' font-size='60' font-weight='bold' text-anchor='middle' fill='white' font-family='Arial'>✋</text></svg>">
 </head>
 <body>
     <div id="app">
+        <!-- Authentication screens -->
+        <div id="auth-screen" class="screen active">
+            <h1>Rock Paper Scissors</h1>
+            <div class="auth-container">
+                <div id="login-form" class="auth-form">
+                    <h2>Login</h2>
+                    <input type="text" id="login-username" placeholder="Username" class="auth-input">
+                    <input type="password" id="login-password" placeholder="Password" class="auth-input">
+                    <button id="login-btn" class="auth-btn">Login</button>
+                    <p class="auth-toggle">Don't have an account? <span id="toggle-to-register" class="auth-link">Register here</span></p>
+                    <div id="login-error" class="error-message hidden"></div>
+                </div>
+                
+                <div id="register-form" class="auth-form hidden">
+                    <h2>Register</h2>
+                    <input type="text" id="register-username" placeholder="Choose a username" class="auth-input">
+                    <input type="password" id="register-password" placeholder="Choose a password" class="auth-input">
+                    <input type="password" id="register-confirm" placeholder="Confirm password" class="auth-input">
+                    <button id="register-btn" class="auth-btn">Register</button>
+                    <p class="auth-toggle">Already have an account? <span id="toggle-to-login" class="auth-link">Login here</span></p>
+                    <div id="register-error" class="error-message hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard screen -->
+        <div id="dashboard" class="screen">
+            <div class="dashboard-header">
+                <h1>Rock Paper Scissors</h1>
+                <div class="user-info">
+                    <span id="username-display">Player</span>
+                    <button id="logout-btn" class="logout-btn">Logout</button>
+                </div>
+            </div>
+            
+            <div class="dashboard-content">
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <div class="stat-label">Single Player Points</div>
+                        <div class="stat-value" id="sp-points">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Multiplayer Score</div>
+                        <div class="stat-value" id="mp-score">1500</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Rank</div>
+                        <div class="stat-value" id="player-rank">#--</div>
+                    </div>
+                </div>
+                
+                <button id="leaderboard-btn" class="dashboard-btn">🏆 Leaderboard</button>
+                <button id="play-btn" class="dashboard-btn">🎮 Play Game</button>
+            </div>
+        </div>
+
+        <!-- Leaderboard screen -->
+        <div id="leaderboard" class="screen">
+            <h2>Leaderboard</h2>
+            <div class="leaderboard-tabs">
+                <button id="sp-leaderboard-tab" class="leaderboard-tab active" data-type="sp">
+                    Single Player
+                </button>
+                <button id="mp-leaderboard-tab" class="leaderboard-tab" data-type="mp">
+                    Multiplayer
+                </button>
+            </div>
+            <div class="leaderboard-container">
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <!-- Leaderboard entries will be populated here -->
+                </div>
+            </div>
+            <button id="back-to-dashboard" class="back-btn">← Back to Dashboard</button>
+        </div>
+
         <!-- Game content will be dynamically loaded here -->
-        <div id="mode-selection" class="screen active">
+        <div id="mode-selection" class="screen">
             <h1>Rock Paper Scissors</h1>
             <p class="subtitle">Choose your game mode</p>
             <div class="mode-buttons">
@@ -25,6 +101,7 @@
                 </button>
             </div>
             <div id="mode-selection-error" class="error-message hidden"></div>
+            <button id="back-to-dashboard-from-mode" class="back-btn">← Back to Dashboard</button>
         </div>
         
         <div id="ai-difficulty" class="screen">
@@ -52,6 +129,10 @@
         <div id="multiplayer-lobby" class="screen">
             <h2>Multiplayer Lobby</h2>
             <div class="lobby-options">
+                <button id="quickplay-btn" class="lobby-btn">
+                    <div class="lobby-icon">⚡</div>
+                    <div class="lobby-text">Quick Play</div>
+                </button>
                 <button id="create-room-btn" class="lobby-btn">
                     <div class="lobby-icon">➕</div>
                     <div class="lobby-text">Create Room</div>
@@ -167,7 +248,8 @@
         </div>
     </div>
     
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="js/authService.js"></script>
     <script src="js/socketClient.js"></script>
     <script src="js/AIEngine.js"></script>
     <script src="js/main.js"></script>

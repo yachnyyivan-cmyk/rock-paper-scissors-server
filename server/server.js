@@ -4,6 +4,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
 const RoomManager = require('./RoomManager');
+const UserManager = require('./UserManager');
 
 // Determine allowed origins from environment (comma-separated), with sensible defaults
 function getAllowedOrigins() {
@@ -33,6 +34,9 @@ class GameServer {
         
         // Track connected clients
         this.connectedClients = new Map();
+        
+        // Initialize user manager
+        this.userManager = new UserManager();
         
         // Initialize room manager
         this.roomManager = new RoomManager();
@@ -113,6 +117,179 @@ class GameServer {
                 timestamp: new Date().toISOString(),
                 rooms: this.roomManager.getRoomStats()
             });
+        });
+
+        // ========== AUTHENTICATION ENDPOINTS ==========
+
+        // Register new user
+        this.app.post('/api/auth/register', (req, res) => {
+            try {
+                const { username, password, confirmPassword } = req.body;
+
+                // Validate inputs
+                if (!username || !password || !confirmPassword) {
+                    return res.status(400).json({ error: 'Missing required fields' });
+                }
+
+                if (password !== confirmPassword) {
+                    return res.status(400).json({ error: 'Passwords do not match' });
+                }
+
+                // Register user
+                const result = this.userManager.register(username, password);
+                
+                if (!result.success) {
+                    return res.status(400).json({ error: result.error });
+                }
+
+                res.json({ success: true, user: result.user });
+            } catch (error) {
+                console.error('Register error:', error);
+                res.status(500).json({ error: 'Registration failed' });
+            }
+        });
+
+        // Login user
+        this.app.post('/api/auth/login', (req, res) => {
+            try {
+                const { username, password } = req.body;
+
+                // Validate inputs
+                if (!username || !password) {
+                    return res.status(400).json({ error: 'Username and password required' });
+                }
+
+                // Login user
+                const result = this.userManager.login(username, password);
+                
+                if (!result.success) {
+                    return res.status(401).json({ error: result.error });
+                }
+
+                res.json({ success: true, user: result.user });
+            } catch (error) {
+                console.error('Login error:', error);
+                res.status(500).json({ error: 'Login failed' });
+            }
+        });
+
+        // Get user by ID
+        this.app.get('/api/users/:userId', (req, res) => {
+            try {
+                const userId = req.params.userId;
+                const user = this.userManager.getUser(userId);
+
+                if (!user) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+
+                res.json(user);
+            } catch (error) {
+                console.error('Get user error:', error);
+                res.status(500).json({ error: 'Failed to get user' });
+            }
+        });
+
+        // Update user stats
+        this.app.put('/api/users/:userId/stats', (req, res) => {
+            try {
+                const userId = req.params.userId;
+                const { spPoints, mpScore } = req.body;
+
+                if (typeof spPoints !== 'number' || typeof mpScore !== 'number') {
+                    return res.status(400).json({ error: 'Invalid stats format' });
+                }
+
+                const result = this.userManager.updateStats(userId, spPoints, mpScore);
+
+                if (!result.success) {
+                    return res.status(404).json({ error: result.error });
+                }
+
+                res.json({ success: true, user: result.user });
+            } catch (error) {
+                console.error('Update stats error:', error);
+                res.status(500).json({ error: 'Failed to update stats' });
+            }
+        });
+
+        // Add single-player points
+        this.app.post('/api/users/:userId/sp-points', (req, res) => {
+            try {
+                const userId = req.params.userId;
+                const { points } = req.body;
+
+                if (typeof points !== 'number' || points < 0) {
+                    return res.status(400).json({ error: 'Invalid points value' });
+                }
+
+                const result = this.userManager.addSpPoints(userId, points);
+
+                if (!result.success) {
+                    return res.status(404).json({ error: result.error });
+                }
+
+                res.json({ success: true, user: result.user });
+            } catch (error) {
+                console.error('Add SP points error:', error);
+                res.status(500).json({ error: 'Failed to add points' });
+            }
+        });
+
+        // Add multiplayer score
+        this.app.post('/api/users/:userId/mp-score', (req, res) => {
+            try {
+                const userId = req.params.userId;
+                const { points } = req.body;
+
+                if (typeof points !== 'number') {
+                    return res.status(400).json({ error: 'Invalid points value' });
+                }
+
+                const result = this.userManager.addMpScore(userId, points);
+
+                if (!result.success) {
+                    return res.status(404).json({ error: result.error });
+                }
+
+                res.json({ success: true, user: result.user });
+            } catch (error) {
+                console.error('Add MP score error:', error);
+                res.status(500).json({ error: 'Failed to add score' });
+            }
+        });
+
+        // Get leaderboard
+        this.app.get('/api/leaderboard', (req, res) => {
+            try {
+                const type = req.query.type || 'sp'; // 'sp' or 'mp'
+                const limit = Math.min(Math.max(1, parseInt(req.query.limit) || 100), 1000);
+
+                const leaderboard = this.userManager.getLeaderboard(type, limit);
+                res.json({ success: true, leaderboard });
+            } catch (error) {
+                console.error('Get leaderboard error:', error);
+                res.status(500).json({ error: 'Failed to get leaderboard' });
+            }
+        });
+
+        // Get user's rank
+        this.app.get('/api/users/:userId/rank', (req, res) => {
+            try {
+                const userId = req.params.userId;
+                const type = req.query.type || 'sp';
+
+                const userRank = this.userManager.getUserRank(userId, type);
+
+                if (!userRank) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+
+                res.json({ success: true, rank: userRank });
+            } catch (error) {
+                console.error('Get user rank error:', error);
+                res.status(500).json({ error: 'Failed to get rank' });
+            }
         });
         
         // API endpoint to get room info by code
@@ -619,4 +796,14 @@ class GameServer {
 
 // Start the server
 const gameServer = new GameServer();
-gameServer.start(process.env.PORT || 3000);
+
+// Check if being run directly or required as a module
+if (require.main === module) {
+    // Being run directly (e.g., npm start)
+    gameServer.start(process.env.PORT || 3000);
+} else {
+    // Being required as a module (e.g., from Electron)
+    // Start server and export it
+    gameServer.start(process.env.PORT || 3000);
+    module.exports = gameServer;
+}

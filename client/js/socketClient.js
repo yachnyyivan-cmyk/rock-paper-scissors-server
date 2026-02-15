@@ -18,7 +18,10 @@ class SocketClient {
         // Event callbacks
         this.callbacks = {};
         
-        this.connect();
+        // Defer connection to next tick to allow event handlers to be registered first
+        setTimeout(() => {
+            this.connect();
+        }, 0);
     }
     
     /**
@@ -33,8 +36,8 @@ class SocketClient {
         this.isConnecting = true;
         
         try {
-            // Determine server URL - use current origin (works for both localhost and deployed URL)
-            const serverUrl = window.location.origin;
+            // Connect to remote server on Render
+            const serverUrl = 'https://rock-paper-scissors-server-smon.onrender.com';
             console.log('Connecting to socket server at:', serverUrl);
             
             const socketOptions = {

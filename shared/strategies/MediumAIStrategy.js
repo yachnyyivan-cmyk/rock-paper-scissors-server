@@ -29,7 +29,8 @@ class MediumAIStrategy {
     }
 
     /**
-     * Makes a move based on pattern analysis and frequency data
+     * Makes a move based on intelligent pattern analysis
+     * Uses psychological analysis and strategic thinking
      * @param {string[]} moveHistory - Player's move history
      * @param {Object} patterns - Detected patterns from AIEngine
      * @returns {string} AI's move choice
@@ -41,24 +42,100 @@ class MediumAIStrategy {
         }
 
         // Occasionally make random moves to avoid being too predictable
-        if (Math.random() < this.randomFallbackRate) {
+        // but reduce randomness as we learn more about the player
+        const adaptiveRandomRate = Math.max(
+            this.randomFallbackRate * (1 - this.successfulPredictions / Math.max(this.movesAnalyzed, 1)),
+            0.1
+        );
+        
+        if (Math.random() < adaptiveRandomRate) {
             return this._getRandomMove();
         }
 
-        // Try pattern-based prediction first
+        // Collect predictions from different strategies
+        const predictions = [];
+
+        // Pattern-based prediction
         const patternPrediction = this._predictFromPatterns(moveHistory, patterns);
         if (patternPrediction) {
-            return this._getCounterMove(patternPrediction);
+            predictions.push({ move: patternPrediction, confidence: 0.4, source: 'pattern' });
         }
 
-        // Fall back to frequency analysis
+        // Frequency analysis prediction
         const frequencyPrediction = this._predictFromFrequency(patterns, moveHistory);
         if (frequencyPrediction) {
-            return this._getCounterMove(frequencyPrediction);
+            predictions.push({ move: frequencyPrediction, confidence: 0.35, source: 'frequency' });
+        }
+
+        // Psychology-based prediction (what do they do after winning/losing)
+        const psychPrediction = this._predictFromPsychology(moveHistory);
+        if (psychPrediction) {
+            predictions.push({ move: psychPrediction, confidence: 0.25, source: 'psychology' });
+        }
+
+        // If we have multiple predictions, use weighted voting
+        if (predictions.length > 0) {
+            const votedMove = this._weightedVote(predictions);
+            return this._getCounterMove(votedMove);
         }
 
         // Final fallback to random
         return this._getRandomMove();
+    }
+
+    /**
+     * Predicts based on player psychology (tendency after streaks)
+     * @param {string[]} moveHistory - Move history
+     * @returns {string|null} Predicted move or null
+     * @private
+     */
+    _predictFromPsychology(moveHistory) {
+        if (moveHistory.length < 5) return null;
+        
+        // Check if player tends to repeat after using same move twice
+        const last3 = moveHistory.slice(-3);
+        if (last3[0] === last3[1] && last3[1] !== last3[2]) {
+            // Player broke a repetition, might go back to it
+            return last3[0];
+        }
+        
+        // Check for "frustrated" behavior - cycling through all moves
+        if (moveHistory.length >= 3) {
+            const last3Unique = new Set(moveHistory.slice(-3));
+            if (last3Unique.size === 3) {
+                // Player used all three moves, might repeat the oldest one
+                return moveHistory[moveHistory.length - 3];
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Performs weighted voting among predictions
+     * @param {Array} predictions - Array of {move, confidence, source}
+     * @returns {string} Most likely move
+     * @private
+     */
+    _weightedVote(predictions) {
+        const votes = new Map();
+        
+        for (const pred of predictions) {
+            const current = votes.get(pred.move) || 0;
+            votes.set(pred.move, current + pred.confidence);
+        }
+        
+        let maxVotes = 0;
+        let winningMove = null;
+        
+        for (const [move, voteCount] of votes) {
+            if (voteCount > maxVotes) {
+                maxVotes = voteCount;
+                winningMove = move;
+            }
+        }
+        
+        return winningMove || this._getRandomMove();
     }
 
     /**
@@ -245,7 +322,8 @@ class MediumAIStrategy {
     }
 
     /**
-     * Predicts next move based on frequency analysis
+     * Predicts next move based on intelligent frequency analysis
+     * Considers recent trends, psychology, and strategic variation
      * @param {Object} patterns - Pattern data from AIEngine
      * @param {string[]} moveHistory - Player's move history
      * @returns {string|null} Predicted move or null if no confident prediction
@@ -256,47 +334,127 @@ class MediumAIStrategy {
             return null;
         }
 
-        // Heavily weight recent moves (last 3-5 moves) to catch current tendencies
-        const recentCount = Math.min(5, moveHistory.length);
-        const recentMoves = moveHistory.slice(-recentCount);
-        const recentFreq = new Map();
-        
-        // Count recent move frequencies
-        for (const move of recentMoves) {
-            const count = recentFreq.get(move) || 0;
-            recentFreq.set(move, count + 1);
-        }
+        // Analyze multiple time windows for trend detection
+        const windows = [
+            { size: 3, weight: 0.5 },  // Very recent (highest weight)
+            { size: 7, weight: 0.3 },  // Recent trend
+            { size: 15, weight: 0.2 }  // Overall pattern
+        ];
 
-        // Analyze player's tendency patterns
-        const combinedScores = new Map();
-        const totalMoves = moveHistory.length;
-
+        const moveScores = new Map();
         for (const move of Object.values(MOVES)) {
-            const overallFreq = (patterns.frequencies.get(move) || 0) / totalMoves;
-            const recentFreqValue = (recentFreq.get(move) || 0) / recentCount;
-            
-            // Weight recent moves heavily (80%) vs overall (20%)
-            const combinedScore = (overallFreq * 0.2) + (recentFreqValue * 0.8);
-            
-            combinedScores.set(move, combinedScore);
+            moveScores.set(move, 0);
         }
 
-        // Find most likely player move based on their patterns
+        // Analyze each time window
+        for (const window of windows) {
+            const windowSize = Math.min(window.size, moveHistory.length);
+            if (windowSize === 0) continue;
+            
+            const windowMoves = moveHistory.slice(-windowSize);
+            const windowFreq = new Map();
+            
+            for (const move of windowMoves) {
+                windowFreq.set(move, (windowFreq.get(move) || 0) + 1);
+            }
+            
+            // Add weighted scores for this window
+            for (const move of Object.values(MOVES)) {
+                const freq = (windowFreq.get(move) || 0) / windowSize;
+                const currentScore = moveScores.get(move);
+                moveScores.set(move, currentScore + (freq * window.weight));
+            }
+        }
+
+        // Detect if player is avoiding a move (anti-pattern)
+        const avoidedMove = this._detectAvoidedMove(moveHistory);
+        if (avoidedMove) {
+            // Don't predict the avoided move
+            moveScores.set(avoidedMove, moveScores.get(avoidedMove) * 0.3);
+        }
+
+        // Detect if player is alternating or cycling
+        const cyclicPrediction = this._detectCyclicBehavior(moveHistory);
+        if (cyclicPrediction) {
+            // Boost the cyclic prediction
+            const currentScore = moveScores.get(cyclicPrediction);
+            moveScores.set(cyclicPrediction, currentScore * 1.5);
+        }
+
+        // Find highest scoring move
         let maxScore = 0;
         let predictedMove = null;
 
-        for (const [move, score] of combinedScores) {
+        for (const [move, score] of moveScores) {
             if (score > maxScore) {
                 maxScore = score;
                 predictedMove = move;
             }
         }
 
-        // Lower threshold to be more aggressive with predictions (25% vs 40%)
-        if (maxScore > 0.25) {
+        // Use adaptive threshold based on confidence
+        const threshold = 0.28;
+        if (maxScore > threshold) {
             return predictedMove;
         }
 
+        return null;
+    }
+
+    /**
+     * Detects if player is avoiding a specific move
+     * @param {string[]} moveHistory - Move history
+     * @returns {string|null} Avoided move or null
+     * @private
+     */
+    _detectAvoidedMove(moveHistory) {
+        if (moveHistory.length < 8) return null;
+        
+        const recentMoves = moveHistory.slice(-8);
+        const freq = new Map();
+        
+        for (const move of recentMoves) {
+            freq.set(move, (freq.get(move) || 0) + 1);
+        }
+        
+        // If a move appears 0-1 times in last 8 moves, player might be avoiding it
+        for (const move of Object.values(MOVES)) {
+            const count = freq.get(move) || 0;
+            if (count <= 1) {
+                return move;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Detects cyclic or alternating behavior
+     * @param {string[]} moveHistory - Move history
+     * @returns {string|null} Predicted next move in cycle or null
+     * @private
+     */
+    _detectCyclicBehavior(moveHistory) {
+        if (moveHistory.length < 4) return null;
+        
+        // Check for simple alternation (A-B-A-B pattern)
+        const last4 = moveHistory.slice(-4);
+        if (last4[0] === last4[2] && last4[1] === last4[3] && last4[0] !== last4[1]) {
+            return last4[0]; // Predict continuation of alternation
+        }
+        
+        // Check for 3-move cycle (A-B-C-A-B-C pattern)
+        if (moveHistory.length >= 6) {
+            const last6 = moveHistory.slice(-6);
+            const firstHalf = last6.slice(0, 3).join('');
+            const secondHalf = last6.slice(3, 6).join('');
+            
+            if (firstHalf === secondHalf) {
+                // Cycle detected, predict next in sequence
+                return last6[0];
+            }
+        }
+        
         return null;
     }
 

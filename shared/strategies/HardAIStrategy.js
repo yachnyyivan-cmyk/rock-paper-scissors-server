@@ -52,7 +52,7 @@ class HardAIStrategy {
     }
 
     /**
-     * Makes a move using advanced AI algorithms
+     * Makes a move using advanced AI algorithms with intelligent analysis
      * @param {string[]} moveHistory - Player's move history
      * @param {Object} patterns - Detected patterns from AIEngine
      * @returns {string} AI's move choice
@@ -66,23 +66,134 @@ class HardAIStrategy {
         // Update Markov chains with latest data
         this._updateMarkovChains(moveHistory);
         
-        // Occasionally explore to avoid being too predictable
-        if (Math.random() < this.explorationRate) {
+        // Adapt exploration rate dynamically
+        const adaptiveExploration = this._calculateAdaptiveExploration();
+        
+        if (Math.random() < adaptiveExploration) {
             return this._exploreStrategy(moveHistory, patterns);
         }
 
-        // Get predictions from all strategies
+        // Get predictions from all strategies with enhanced analysis
         const predictions = this._getAllPredictions(moveHistory, patterns);
         
-        // Select best strategy based on current weights and confidence
-        const selectedPrediction = this._selectBestPrediction(predictions);
+        // Use ensemble method to combine predictions intelligently
+        const ensemblePrediction = this._ensemblePrediction(predictions);
         
-        if (selectedPrediction && selectedPrediction.confidence >= this.confidenceThreshold) {
-            return this._getCounterMove(selectedPrediction.move);
+        if (ensemblePrediction && ensemblePrediction.confidence >= this.confidenceThreshold) {
+            return this._getCounterMove(ensemblePrediction.move);
         }
 
-        // Fallback to weighted random selection from top predictions
+        // Use strategic bluffing - sometimes counter the counter
+        if (this._shouldBluff()) {
+            const bluffMove = this._getBluffMove(predictions);
+            if (bluffMove) return bluffMove;
+        }
+
+        // Fallback to weighted prediction
         return this._getWeightedPrediction(predictions);
+    }
+
+    /**
+     * Calculates adaptive exploration rate based on performance
+     * @returns {number} Exploration rate
+     * @private
+     */
+    _calculateAdaptiveExploration() {
+        if (this.recentResults.length < 5) {
+            return this.explorationRate;
+        }
+        
+        const recentWinRate = this._calculateRecentWinRate();
+        
+        // If winning rate is good (>60%), reduce exploration
+        // If struggling (<40%), increase exploration
+        if (recentWinRate > 0.6) {
+            return Math.max(0.05, this.explorationRate * 0.8);
+        } else if (recentWinRate < 0.4) {
+            return Math.min(0.25, this.explorationRate * 1.3);
+        }
+        
+        return this.explorationRate;
+    }
+
+    /**
+     * Combines predictions using ensemble method with confidence weighting
+     * @param {Array} predictions - Array of prediction objects
+     * @returns {Object|null} Best ensemble prediction or null
+     * @private
+     */
+    _ensemblePrediction(predictions) {
+        if (predictions.length === 0) return null;
+        
+        // Aggregate votes with confidence weighting
+        const votes = new Map();
+        
+        for (const pred of predictions) {
+            const score = pred.confidence * pred.weight;
+            const current = votes.get(pred.move) || { totalScore: 0, count: 0 };
+            votes.set(pred.move, {
+                totalScore: current.totalScore + score,
+                count: current.count + 1
+            });
+        }
+        
+        // Find move with highest combined score and agreement
+        let bestMove = null;
+        let bestScore = 0;
+        let totalScore = 0;
+        
+        for (const [move, data] of votes) {
+            totalScore += data.totalScore;
+            // Bonus for multiple strategies agreeing
+            const agreementBonus = data.count > 1 ? 1.2 : 1.0;
+            const finalScore = data.totalScore * agreementBonus;
+            
+            if (finalScore > bestScore) {
+                bestScore = finalScore;
+                bestMove = move;
+            }
+        }
+        
+        // Calculate confidence based on how much better best move is
+        const confidence = totalScore > 0 ? bestScore / totalScore : 0;
+        
+        return bestMove ? { move: bestMove, confidence } : null;
+    }
+
+    /**
+     * Determines if AI should use bluffing strategy
+     * @returns {boolean} True if should bluff
+     * @private
+     */
+    _shouldBluff() {
+        // Bluff occasionally when we have good prediction confidence
+        if (this.successfulPredictions < 3) return false;
+        
+        const accuracy = this.successfulPredictions / Math.max(this.movesAnalyzed, 1);
+        
+        // If we're predicting too well, player might catch on - use bluffing
+        return accuracy > 0.6 && Math.random() < 0.15;
+    }
+
+    /**
+     * Gets a bluff move that counters what player expects
+     * @param {Array} predictions - Current predictions
+     * @returns {string|null} Bluff move or null
+     * @private
+     */
+    _getBluffMove(predictions) {
+        if (predictions.length === 0) return null;
+        
+        // Get our predicted counter move
+        const topPrediction = this._selectBestPrediction(predictions);
+        if (!topPrediction) return null;
+        
+        const ourCounter = this._getCounterMove(topPrediction.move);
+        
+        // If player expects our counter, they might counter it
+        // So we counter their counter (meta-game)
+        const theirExpectedCounter = this._getCounterMove(ourCounter);
+        return this._getCounterMove(theirExpectedCounter);
     }
 
     /**
@@ -303,7 +414,7 @@ class HardAIStrategy {
     }
 
     /**
-     * Gets Markov chain prediction
+     * Gets Markov chain prediction with intelligent probability analysis
      * @param {string[]} moveHistory - Player's move history
      * @returns {Object|null} Prediction object or null
      * @private
@@ -317,33 +428,69 @@ class HardAIStrategy {
         const transitions = this.markovChains.get(currentState);
         
         if (!transitions || transitions.size === 0) {
+            // Try shorter sequence if exact match not found
+            if (this.markovOrder > 2) {
+                const shorterState = moveHistory.slice(-(this.markovOrder - 1)).join('');
+                const shorterTransitions = this.markovChains.get(shorterState);
+                if (shorterTransitions && shorterTransitions.size > 0) {
+                    return this._analyzeTransitions(shorterTransitions, 0.85);
+                }
+            }
             return null;
         }
         
-        // Find most likely next move
+        return this._analyzeTransitions(transitions, 1.0);
+    }
+
+    /**
+     * Analyzes transitions to find best prediction
+     * @param {Map} transitions - Transition frequency map
+     * @param {number} confidenceMultiplier - Multiplier for confidence
+     * @returns {Object} Prediction object
+     * @private
+     */
+    _analyzeTransitions(transitions, confidenceMultiplier) {
         let maxCount = 0;
         let predictedMove = null;
         let totalCount = 0;
+        const counts = [];
         
         for (const [move, count] of transitions) {
             totalCount += count;
+            counts.push(count);
             if (count > maxCount) {
                 maxCount = count;
                 predictedMove = move;
             }
         }
         
-        // Boost confidence for Markov predictions (multiply by 1.3)
-        const confidence = (maxCount / totalCount) * 1.3;
+        // Calculate confidence considering distribution
+        // Higher confidence if one move is dominant
+        const baseConfidence = maxCount / totalCount;
+        
+        // Calculate entropy to measure predictability
+        let entropy = 0;
+        for (const count of counts) {
+            if (count > 0) {
+                const p = count / totalCount;
+                entropy -= p * Math.log2(p);
+            }
+        }
+        
+        // Lower entropy = more predictable = higher confidence boost
+        const maxEntropy = Math.log2(transitions.size);
+        const entropyFactor = 1 + (1 - entropy / maxEntropy) * 0.3;
+        
+        const finalConfidence = Math.min(baseConfidence * entropyFactor * confidenceMultiplier, 1.0);
         
         return {
             move: predictedMove,
-            confidence: Math.min(confidence, 1.0) // Cap at 1.0
+            confidence: finalConfidence
         };
     }
 
     /**
-     * Gets frequency-based prediction with heavy recent weighting
+     * Gets frequency-based prediction with intelligent trend analysis
      * @param {Object} patterns - Pattern data
      * @returns {Object|null} Prediction object or null
      * @private
@@ -353,35 +500,50 @@ class HardAIStrategy {
             return null;
         }
         
-        // Weight recent moves very heavily (85%) to catch current player tendencies
         const recentMoves = patterns.lastMoves || [];
-        const recentWeight = 0.85;
+        if (recentMoves.length < 3) return null;
         
+        // Analyze multiple time horizons
+        const shortTerm = recentMoves.slice(-3);  // Last 3 moves
+        const midTerm = recentMoves.slice(-7);    // Last 7 moves
+        const longTerm = recentMoves.slice(-15);  // Last 15 moves
+        
+        const scores = new Map();
+        
+        for (const move of Object.values(MOVES)) {
+            // Count frequencies in each horizon
+            const shortFreq = shortTerm.filter(m => m === move).length / shortTerm.length;
+            const midFreq = midTerm.length > 0 ? midTerm.filter(m => m === move).length / midTerm.length : 0;
+            const longFreq = longTerm.length > 0 ? longTerm.filter(m => m === move).length / longTerm.length : 0;
+            
+            // Detect trends - is frequency increasing or decreasing?
+            const trend = (shortFreq - midFreq) + (midFreq - longFreq) / 2;
+            const trendBonus = trend > 0 ? 1.3 : 0.9; // Boost if increasing
+            
+            // Weight recent more heavily but consider trend
+            const weightedScore = (shortFreq * 0.6 + midFreq * 0.3 + longFreq * 0.1) * trendBonus;
+            scores.set(move, weightedScore);
+        }
+        
+        // Find highest scoring move
         let maxScore = 0;
         let predictedMove = null;
         let totalScore = 0;
         
-        for (const move of Object.values(MOVES)) {
-            const overallFreq = patterns.frequencies.get(move) || 0;
-            const recentCount = recentMoves.filter(m => m === move).length;
-            const recentFreq = recentCount / Math.max(recentMoves.length, 1);
-            
-            // Heavily prioritize recent behavior over historical data
-            const score = (overallFreq * (1 - recentWeight)) + (recentFreq * recentWeight);
+        for (const [move, score] of scores) {
             totalScore += score;
-            
             if (score > maxScore) {
                 maxScore = score;
                 predictedMove = move;
             }
         }
         
-        // Boost confidence to make more aggressive predictions
-        const confidence = totalScore > 0 ? (maxScore / totalScore) * 1.2 : 0;
+        // Check if prediction is strong enough
+        const confidence = totalScore > 0 ? (maxScore / totalScore) * 1.15 : 0;
         
         return {
             move: predictedMove,
-            confidence: Math.min(confidence, 1.0) // Cap at 1.0
+            confidence: Math.min(confidence, 1.0)
         };
     }
 
@@ -447,45 +609,44 @@ class HardAIStrategy {
      * @private
      */
     _getCounterStrategyPrediction(moveHistory) {
-        if (moveHistory.length < 3) {
+        if (moveHistory.length < 3 || this.recentResults.length < 3) {
             return null;
         }
         
-        // Analyze what player tends to do after losing/winning
-        const recentResults = this.recentResults.slice(-3);
-        if (recentResults.length === 0) {
-            return null;
-        }
+        // Analyze behavior based on previous result
+        const lastResult = this.recentResults[this.recentResults.length - 1];
         
-        // Look for patterns in player behavior after specific results
-        const lastResult = recentResults[recentResults.length - 1];
-        const similarSituations = this.recentResults.filter(r => r.result === lastResult.result);
+        // Find patterns in what player does after specific results
+        const behaviorPatterns = new Map();
         
-        if (similarSituations.length < 2) {
-            return null;
-        }
-        
-        // Find most common follow-up move
-        const followUpMoves = new Map();
         for (let i = 0; i < this.recentResults.length - 1; i++) {
-            if (this.recentResults[i].result === lastResult.result) {
-                const nextMove = this.recentResults[i + 1]?.playerMove;
-                if (nextMove) {
-                    const count = followUpMoves.get(nextMove) || 0;
-                    followUpMoves.set(nextMove, count + 1);
-                }
+            const result = this.recentResults[i].result;
+            const nextMove = this.recentResults[i + 1]?.playerMove;
+            
+            if (!nextMove) continue;
+            
+            // Track what they do after each result type
+            const key = `after_${result}`;
+            if (!behaviorPatterns.has(key)) {
+                behaviorPatterns.set(key, new Map());
             }
+            
+            const patternMap = behaviorPatterns.get(key);
+            patternMap.set(nextMove, (patternMap.get(nextMove) || 0) + 1);
         }
         
-        if (followUpMoves.size === 0) {
+        // Predict based on last game result
+        const relevantPattern = behaviorPatterns.get(`after_${lastResult.result}`);
+        if (!relevantPattern || relevantPattern.size === 0) {
             return null;
         }
         
+        // Find most common response to this result
         let maxCount = 0;
         let predictedMove = null;
         let totalCount = 0;
         
-        for (const [move, count] of followUpMoves) {
+        for (const [move, count] of relevantPattern) {
             totalCount += count;
             if (count > maxCount) {
                 maxCount = count;
@@ -493,11 +654,23 @@ class HardAIStrategy {
             }
         }
         
-        const confidence = maxCount / totalCount;
+        // Also consider if player tends to change strategy after losses
+        let confidenceModifier = 1.0;
+        if (lastResult.result === 'lose' && moveHistory.length >= 2) {
+            const lastMove = moveHistory[moveHistory.length - 1];
+            const secondLastMove = moveHistory[moveHistory.length - 2];
+            
+            // If they're changing moves frequently after losses, lower confidence
+            if (lastMove !== secondLastMove) {
+                confidenceModifier = 0.85;
+            }
+        }
+        
+        const confidence = totalCount > 0 ? (maxCount / totalCount) * confidenceModifier * 1.1 : 0;
         
         return {
             move: predictedMove,
-            confidence: confidence
+            confidence: Math.min(confidence, 1.0)
         };
     }
 
